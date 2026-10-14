@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @Configuration
-@Profile("!test")
+@Profile("gcp & !test")
 @EnableScheduling
 @ConditionalOnProperty(prefix = "checkout.analytics", name = "enabled", havingValue = "true")
 public class AnalyticsConfiguration {

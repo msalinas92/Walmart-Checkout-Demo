@@ -10,7 +10,7 @@ export GOOGLE_CLOUD_PROJECT := $(PROJECT_ID)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help build test run run-analytics image deploy clean
+.PHONY: help build test run run-gcp run-analytics image deploy clean
 
 help: ## Muestro las tareas disponibles del backend.
 	@awk 'BEGIN {FS = ":.*##"}; /^[a-zA-Z0-9_-]+:.*##/ {printf "%-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -21,11 +21,14 @@ build: ## Compilo, pruebo y empaqueto el JAR ejecutable.
 test: ## Ejecuto pruebas unitarias y de integración sin depender de GCP.
 	$(GRADLE) test
 
-run: ## Inicio la API Spring Boot usando ADC y el proyecto indicado.
+run: ## Inicio la API local sin credenciales ni servicios externos.
 	$(GRADLE) bootRun
 
-run-analytics: ## Inicio la API con el consumidor local Pub/Sub a BigQuery activo.
-	CHECKOUT_ANALYTICS_ENABLED=true $(GRADLE) bootRun
+run-gcp: ## Inicio la API con Firestore y Pub/Sub usando ADC.
+	SPRING_PROFILES_ACTIVE=gcp $(GRADLE) bootRun
+
+run-analytics: ## Inicio la API GCP con el consumidor local Pub/Sub a BigQuery activo.
+	SPRING_PROFILES_ACTIVE=gcp CHECKOUT_ANALYTICS_ENABLED=true $(GRADLE) bootRun
 
 image: ## Construyo y publico la imagen OCI mediante Cloud Build.
 	gcloud builds submit . --project=$(PROJECT_ID) --tag=$(IMAGE)

@@ -2,10 +2,10 @@ package cl.retail.checkout.infrastructure.testsupport;
 
 import cl.retail.checkout.application.CheckoutRepository;
 import cl.retail.checkout.domain.CheckoutOrder;
-import cl.retail.checkout.domain.Product;
-import cl.retail.checkout.domain.Quote;
-import cl.retail.checkout.domain.PromotionDefinition;
 import cl.retail.checkout.domain.PaymentMethod;
+import cl.retail.checkout.domain.Product;
+import cl.retail.checkout.domain.PromotionDefinition;
+import cl.retail.checkout.domain.Quote;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 

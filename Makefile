@@ -9,7 +9,7 @@ export GOOGLE_CLOUD_PROJECT := $(PROJECT_ID)
 
 
 .PHONY: help build test verify deploy deploy-infra deploy-api deploy-web deploy-app infra-bootstrap infra-plan \
-	backend-build backend-test backend-run backend-run-analytics \
+	backend-build backend-test backend-run backend-run-gcp backend-run-analytics \
 	frontend-install frontend-build frontend-check frontend-run frontend-start
 
 help: ## Muestro los comandos disponibles del monorepo.
@@ -68,10 +68,13 @@ backend-build: ## Compilo el backend Java con Gradle.
 backend-test: ## Ejecuto pruebas unitarias e integración del backend.
 	$(MAKE) -C backend test
 
-backend-run: ## Inicio Spring Boot contra los servicios GCP configurados.
-	$(MAKE) -C backend run PROJECT_ID=$(PROJECT_ID)
+backend-run: ## Inicio Spring Boot local, sin credenciales ni servicios GCP.
+	$(MAKE) -C backend run
 
-backend-run-analytics: ## Inicio el backend y el consumidor local Pub/Sub a BigQuery.
+backend-run-gcp: ## Inicio Spring Boot contra los servicios GCP configurados.
+	$(MAKE) -C backend run-gcp PROJECT_ID=$(PROJECT_ID)
+
+backend-run-analytics: ## Inicio el perfil GCP y el consumidor local Pub/Sub a BigQuery.
 	$(MAKE) -C backend run-analytics PROJECT_ID=$(PROJECT_ID)
 
 frontend-install: ## Instalo dependencias reproducibles del frontend.

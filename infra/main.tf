@@ -97,6 +97,12 @@ resource "google_cloud_run_v2_service" "checkout_api" {
         value = var.project_id
       }
 
+      # El perfil gcp activa los adaptadores Firestore y Pub/Sub; sin él la API usa memoria local.
+      env {
+        name  = "SPRING_PROFILES_ACTIVE"
+        value = "gcp"
+      }
+
       # Aquí restrinjo CORS al frontend desplegado una vez que su URL esté disponible.
       env {
         name  = "CORS_ALLOWED_ORIGINS"

@@ -10,4 +10,5 @@ infra/*.tfplan
 frontend/node_modules/
 frontend/.next/
 frontend/.env.local
+.local/
 .DS_Store

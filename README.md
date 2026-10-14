@@ -20,7 +20,7 @@ interfaz web.
 - [Persistencia en Firestore](#persistencia-en-firestore)
 - [Eventos, outbox y BigQuery](#eventos-outbox-y-bigquery)
 - [API REST y Swagger](#api-rest-y-swagger)
-- [Ejecución local con servicios GCP reales](#ejecución-local-con-servicios-gcp-reales)
+- [Ejecución local sin servicios externos](#ejecución-local-sin-servicios-externos)
 - [Infraestructura con Terraform](#infraestructura-con-terraform)
 - [Build y despliegue](#build-y-despliegue)
 - [Pruebas](#pruebas)
@@ -110,7 +110,7 @@ flowchart TB
 | Checkout API | Java 21, Spring Boot 3.4, Gradle 8.12 | REST, validación, CORS y orquestación | Cloud Run `retail-checkout-api` | JVM, puerto `8080` |
 | OpenAPI | springdoc-openapi 2.8.14 | Contrato y consola Swagger | Dentro de la API | Dentro de la API |
 | Motor de precios | Java puro, Strategy | Ordena y aplica reglas de descuento | Dentro de la API | Dentro de la API |
-| Persistencia operacional | Firestore Native, Google Cloud Java SDK | Catálogo, promociones, quotes, órdenes, idempotencia y outbox | Firestore `(default)` | El mismo Firestore real |
+| Persistencia operacional | Puerto `CheckoutRepository` con adaptadores Firestore y SQLite | Catálogo, promociones, quotes, órdenes, idempotencia y outbox | Firestore `(default)` | SQLite local, sin credenciales |
 | Bus de eventos | Google Pub/Sub | Desacopla checkout de analítica | Tópico `checkout.transaction.v1` | El mismo Pub/Sub real |
 | Proyección productiva | Suscripción BigQuery de Pub/Sub | Escribe el JSON directamente en la tabla raw | `checkout-analytics-bigquery` | Servicio administrado GCP |
 | Consumidor alternativo | Java, Pub/Sub Subscriber, BigQuery load job | Procesamiento batch demostrativo | Desactivado en Cloud Run | Opcional con `make backend-run-analytics` |
@@ -159,7 +159,8 @@ darle un caso de uso propio para mantener la misma separación que checkout.
 - El service agent de Pub/Sub recibe `roles/bigquery.dataEditor` sobre el
   dataset y `roles/bigquery.metadataViewer` sobre el proyecto.
 - No hay llaves JSON, secretos ni datos de pago en el repositorio.
-- En local se usan Application Default Credentials (ADC) del usuario.
+- El perfil local no usa credenciales; el perfil `gcp` usa Application Default
+  Credentials (ADC) del usuario o la cuenta de servicio de Cloud Run.
 
 ## Estructura del repositorio
 
@@ -643,51 +644,35 @@ curl --request POST \
 Repetir exactamente la misma solicitud y clave devuelve el mismo `orderId` y
 no vuelve a publicar un outbox que ya esté `PUBLISHED`.
 
-## Ejecución local con servicios GCP reales
+## Ejecución local sin servicios externos
 
-No se usan emuladores. El frontend y la API corren localmente, pero Firestore,
-Pub/Sub y BigQuery siguen siendo los servicios reales de
-`walmart-demo-511500`.
+La ejecución por defecto no usa GCP, emuladores ni credenciales. La API carga
+los mismos 12 productos y las promociones de demostración en SQLite. Las
+cotizaciones, órdenes e idempotencia persisten entre reinicios en
+`.local/checkout.db` (relativo a la raíz del repositorio al usar `make`). El
+evento de negocio se simula en el log de la API.
+
+El perfil `gcp` queda disponible para ejecutar contra Firestore y Pub/Sub
+reales cuando se cuente con acceso al proyecto.
 
 ### Requisitos
 
 - Java 21;
 - Node.js 22 recomendado y npm 10+;
-- `curl` y `unzip` para el bootstrap de Gradle;
-- Terraform 1.8 o superior;
-- Google Cloud CLI con `bq`;
-- acceso al proyecto `walmart-demo-511500`.
+- `curl` y `unzip` para el bootstrap de Gradle.
 
 El script `backend/gradlew` fija Gradle 8.12.1 y lo descarga dentro de
 `backend/.gradle` si no existe. No se usa Maven ni se requiere Gradle global.
 
-### 1. Autenticación
-
-```bash
-gcloud auth login
-gcloud auth application-default login
-gcloud auth application-default set-quota-project walmart-demo-511500
-gcloud config set project walmart-demo-511500
-```
-
-Verificación rápida:
-
-```bash
-gcloud auth list
-gcloud config get-value project
-gcloud firestore databases describe --database='(default)' \
-  --project=walmart-demo-511500
-```
-
-### 2. Levantar backend
+### 1. Levantar backend
 
 Terminal 1, desde la raíz:
 
 ```bash
-make backend-run PROJECT_ID=walmart-demo-511500
+make backend-run
 ```
 
-Al arrancar, la API hace upsert de la data ficticia y queda disponible en:
+Al arrancar, la API carga la data ficticia en memoria y queda disponible en:
 
 - API: <http://localhost:8080/api/v1/catalog/products>
 - Swagger: <http://localhost:8080/swagger-ui/index.html>
@@ -698,19 +683,21 @@ Variables soportadas:
 | Variable | Default | Uso |
 |---|---|---|
 | `PORT` | `8080` | Puerto HTTP |
-| `GOOGLE_CLOUD_PROJECT` | `local-project` | Proyecto GCP; Make lo fija correctamente |
+| `SPRING_PROFILES_ACTIVE` | *(vacío)* | Use `gcp` sólo para activar Firestore y Pub/Sub reales |
+| `CHECKOUT_LOCAL_DATABASE_PATH` | `../.local/checkout.db` | Ruta SQLite relativa a `backend/`; permite cambiar el archivo local |
+| `GOOGLE_CLOUD_PROJECT` | `local-project` | Proyecto GCP, usado únicamente con perfil `gcp` |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:3000` | Orígenes web separados por coma |
 | `CHECKOUT_TOPIC_ID` | `checkout.transaction.v1` | Tópico de salida |
 | `CHECKOUT_SUBSCRIPTION_ID` | `checkout-analytics-local` | Suscripción del consumidor opcional |
 | `BIGQUERY_DATASET` | `retail_analytics` | Dataset del consumidor opcional |
 | `BIGQUERY_TABLE` | `checkout_transactions_raw` | Tabla del consumidor opcional |
-| `CHECKOUT_ANALYTICS_ENABLED` | `false` | Activa el consumidor Java local |
+| `CHECKOUT_ANALYTICS_ENABLED` | `false` | Activa el consumidor Java local; requiere perfil `gcp` |
 
 No active `CHECKOUT_ANALYTICS_ENABLED=true` mientras quiera validar únicamente
 la ruta administrada: la suscripción local es independiente y produciría otra
 carga batch en la misma tabla.
 
-### 3. Levantar frontend
+### 2. Levantar frontend
 
 Terminal 2, desde la raíz:
 
@@ -729,7 +716,7 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/api/v1
 Next.js. Si cambia la URL desplegada de la API, hay que reconstruir la imagen
 web.
 
-### 4. Validación manual mínima
+### 3. Validación manual mínima
 
 ```bash
 curl --fail http://localhost:8080/api/v1/catalog/categories
@@ -742,8 +729,23 @@ Después complete en el navegador:
 /  →  agregar producto  →  /carrito  →  /checkout  →  confirmar
 ```
 
-La proyección a BigQuery es asíncrona; puede tardar algunos segundos después
-de que la API confirme la orden.
+En modo local, el evento se registra en el log de la API como publicación
+simulada y los datos se pueden inspeccionar con cualquier cliente SQLite sobre
+`.local/checkout.db`. La proyección a BigQuery existe sólo con el perfil `gcp`
+y puede tardar algunos segundos después de confirmar la orden.
+
+### Perfil opcional GCP
+
+Para usar Firestore, Pub/Sub y BigQuery reales se requieren Google Cloud CLI,
+Terraform si se aprovisiona infraestructura, y credenciales ADC con acceso al
+proyecto. Luego ejecute:
+
+```bash
+make backend-run-gcp PROJECT_ID=walmart-demo-511500
+```
+
+Para activar el consumidor Java opcional hacia BigQuery use
+`make backend-run-analytics PROJECT_ID=walmart-demo-511500`.
 
 ## Infraestructura con Terraform
 
@@ -1067,7 +1069,7 @@ BigQuery tienen protección de eliminación, y el bucket de estado no permite
 
 ## Solución de problemas
 
-### `401`, `403` o ADC no disponible en backend local
+### `401`, `403` o ADC no disponible con el perfil `gcp`
 
 ```bash
 gcloud auth application-default login
@@ -1082,10 +1084,12 @@ Confirme además que su usuario tiene acceso a Firestore y Pub/Sub.
 Revise `frontend/.env.local`, detenga Next.js y vuelva a levantarlo. Las
 variables `NEXT_PUBLIC_*` se leen al construir/iniciar la aplicación.
 
+El perfil local no requiere este paso: use simplemente `make backend-run`.
+
 ### El catálogo carga vacío o devuelve error
 
-Revise primero que la API esté ejecutándose. Su arranque debe completar el
-seed de Firestore. Consulte:
+Revise primero que la API esté ejecutándose. En local carga el catálogo en
+memoria; con perfil `gcp` completa el seed de Firestore. Consulte:
 
 ```bash
 curl -i http://localhost:8080/api/v1/catalog/products

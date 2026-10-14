@@ -21,7 +21,7 @@ import org.springframework.context.annotation.Profile;
 import java.math.BigDecimal;
 
 @Configuration
-@Profile("!test")
+@Profile("gcp & !test")
 @EnableConfigurationProperties(GcpProperties.class)
 public class GcpConfiguration {
     @Bean
