@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: retail-checkout-api
+  jackson:
+    default-property-inclusion: non_null
+server:
+  port: ${PORT:8080}
+checkout:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+  gcp:
+    project-id: ${GOOGLE_CLOUD_PROJECT:local-project}
+    topic-id: ${CHECKOUT_TOPIC_ID:checkout.transaction.v1}
+    subscription-id: ${CHECKOUT_SUBSCRIPTION_ID:checkout-analytics-local}
+    big-query-dataset: ${BIGQUERY_DATASET:retail_analytics}
+    big-query-table: ${BIGQUERY_TABLE:checkout_transactions_raw}
+  analytics:
+    enabled: ${CHECKOUT_ANALYTICS_ENABLED:false}
+springdoc:
+  swagger-ui:
+    path: /swagger-ui/index.html

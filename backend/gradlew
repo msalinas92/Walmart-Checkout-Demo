@@ -1,0 +1,19 @@
+#!/bin/sh
+set -eu
+
+# Aquí descargo Gradle dentro del repositorio para que el proyecto no dependa de instalaciones globales.
+BASE_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+GRADLE_VERSION=8.12.1
+GRADLE_HOME="$BASE_DIR/.gradle/gradle-$GRADLE_VERSION"
+ARCHIVE="$BASE_DIR/.gradle/gradle-$GRADLE_VERSION-bin.zip"
+export GRADLE_USER_HOME="$BASE_DIR/.gradle/user-home"
+
+if [ ! -x "$GRADLE_HOME/bin/gradle" ]; then
+  mkdir -p "$BASE_DIR/.gradle"
+  if [ ! -f "$ARCHIVE" ]; then
+    curl -fsSL "https://services.gradle.org/distributions/gradle-$GRADLE_VERSION-bin.zip" -o "$ARCHIVE"
+  fi
+  unzip -q "$ARCHIVE" -d "$BASE_DIR/.gradle"
+  mv "$BASE_DIR/.gradle/gradle-$GRADLE_VERSION" "$GRADLE_HOME" 2>/dev/null || true
+fi
+exec "$GRADLE_HOME/bin/gradle" "$@"

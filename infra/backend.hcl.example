@@ -1,0 +1,3 @@
+# Copia este archivo como backend.hcl si cambias el bucket o el prefijo.
+bucket = "walmart-demo-511500-retail-checkout-tfstate"
+prefix = "retail-checkout/demo"

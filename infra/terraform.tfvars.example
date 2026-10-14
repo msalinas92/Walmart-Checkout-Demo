@@ -1,0 +1,5 @@
+project_id         = "walmart-demo-511500"
+firestore_location = "southamerica-west1"
+bigquery_location  = "US"
+environment        = "demo"
+cloud_run_region   = "southamerica-west1"

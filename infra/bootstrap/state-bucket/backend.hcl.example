@@ -1,0 +1,2 @@
+bucket = "walmart-demo-511500-retail-checkout-tfstate"
+prefix = "retail-checkout/bootstrap"

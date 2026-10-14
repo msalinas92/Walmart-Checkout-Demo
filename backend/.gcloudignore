@@ -1,0 +1,7 @@
+# Aquí excluyo artefactos locales para que Cloud Build reciba sólo el código necesario.
+.gcloudignore
+.git
+.gitignore
+.gradle
+build
+*.md
